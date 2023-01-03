@@ -27,33 +27,6 @@ from solid.utils import *
 import numpy as np
 
 
-def base_rack(
-    base_w=25,
-    base_d=20,
-    base_h=2,
-    base_curve_r=3,
-    dial_center_diff=15,
-    dial_offset=5,
-    ):
-    corner = sd.cylinder(r=base_curve_r, h=base_h, center=False)
-    high_corner = sd.cylinder(r=base_curve_r, h=1.5*base_h, center=False)
-    high_corner = sd.translate([0,0,base_h])(high_corner)
-    corner = sd.translate([.5*(-base_w+.0*base_curve_r),base_curve_r,0])(corner)
-    high_corner = sd.translate([.5*(-base_w+.0*base_curve_r),base_curve_r,0])(high_corner)
-    base = sd.hull()(
-        corner,
-        sd.translate([0,base_d+6,0])(corner),
-        )
-    base += sd.hull()(
-        sd.translate([base_w,0,0])(corner),
-        sd.translate([base_w,base_d+6,0])(corner),
-        )
-    base += sd.hull()(
-        sd.translate([0,base_d,0])(high_corner),
-        sd.translate([base_w,base_d,0])(high_corner),
-        )
-    base = sd.translate([0,-dial_offset,0])(base)
-    return base
 
 def beveled_box(XYZ, bevel, center=False):
     '''Box with beveled corners
@@ -73,13 +46,13 @@ def beveled_box(XYZ, bevel, center=False):
         box = sd.translate([x/2, y/2, z/2])(box)
     return box
 
-def card_notch(gap=.2, base_w=25, notch_r=6):
+def card_notch(gap=.3, base_w=25, notch_r=6):
     notch = sd.cube([50,3,20],center=True)
     notch = sd.translate([0,0,10])(notch)
-    notch -= sd.translate([0,notch_r+gap/2,0])(sd.rotate([0,90,0])(sd.cylinder(r=notch_r, h=2*base_w, center=True)))
+    notch -= sd.translate([0,notch_r+gap,0])(sd.rotate([0,90,0])(sd.cylinder(r=notch_r, h=2*base_w, center=True)))
     notch -= sd.translate([0,-notch_r,0])(sd.rotate([0,90,0])(sd.cylinder(r=notch_r, h=2*base_w, center=True)))
-    notch = sd.rotate([5,0,0])(notch)
-    notch = sd.translate([0,27,2.01])(notch)
+    notch = sd.rotate([5,0,180])(notch)
+    notch = sd.translate([0,6.5,2.01])(notch)
     return notch
 
 lr_offset = 10
@@ -93,17 +66,11 @@ leg_z = 2
 leg = beveled_box(XYZ=[leg_x, leg_y, leg_z], bevel=bevel, center=True)
 leg = sd.translate([0,leg_y/2,leg_z/2])(leg)
 
-leghole_x = 6+gap
-leghole_y = 36
-leghole_z = 2+gap
-leghole = beveled_box(XYZ=[leghole_x, leghole_y, leghole_z], bevel=bevel, center=True)
-leghole = sd.translate([-9-gap,leghole_y/2,leghole_z/2])(leghole)
-
 cross_x = 36
 cross_y = 10
 cross_z = 3
-cross = beveled_box(XYZ=[cross_x, cross_y, cross_z], bevel=bevel, center=True)
-cross = sd.translate([0, 10, cross_z/2+leg_z])(cross)
+cross = beveled_box(XYZ=[cross_x, cross_y-gap, cross_z], bevel=bevel, center=True)
+cross = sd.translate([0, -5+(leg_y-leg_x*3**.5)/2*3**.5-20, cross_z/2+leg_z])(cross)
 
 post = beveled_box(XYZ=[leg_x, cross_y, cross_z+leg_z], bevel=bevel, center=True)
 post = sd.translate([0,0,(cross_z+leg_z)/2])(post)
@@ -116,16 +83,43 @@ leg2 = sd.translate([-(leg_y/2-leg_x*3**.5/2),0,0])(sd.rotate([0,0,-30])(leg))
 tip = sd.intersection()(leg1,leg2)
 
 sleg_x = 5
-sleg_y = 36
+sleg_y = 26.5
 sleg_z = 2
 sleg = beveled_box(XYZ=[sleg_x, sleg_y, sleg_z], bevel=bevel, center=True)
 sleg = sd.translate([0,sleg_y/2,sleg_z/2])(sleg)
 
+leg1 = sd.translate([leg_y/2-leg_x*3**.5/2,0,0])(sd.rotate([0,0,30])(sleg)),
+leg2 = sd.translate([-(leg_y/2-leg_x*3**.5/2),0,0])(sd.rotate([0,0,-30])(sleg)),
+
+hexagon = beveled_box(XYZ=[10*3**-.5, 10-gap, 5], bevel=bevel, center=True)
+hexagon = sd.hull()(hexagon,
+                     sd.rotate([0,0,60])(hexagon),
+                     sd.rotate([0,0,120])(hexagon),
+                     )
+hexagon2 = beveled_box(XYZ=[10*3**-.5, 10-gap, 3], bevel=bevel, center=True)
+hexagon2 = sd.hull()(hexagon2,
+                     sd.rotate([0,0,60])(hexagon2),
+                     sd.rotate([0,0,120])(hexagon2),
+                     )
+hexagon3 = sd.translate([0, -5+(leg_y-leg_x*3**.5)/2*3**.5-20, cross_z/2])(hexagon2)
+hexagon2 = sd.translate([0, -5+(leg_y-leg_x*3**.5)/2*3**.5-20, cross_z/2+leg_z+gap])(hexagon2)
+hexagon4 = sd.intersection()(leg1, sd.translate([20*3**-.5+gap*.5,0, 0])(hexagon3))
+hexagon5 = sd.intersection()(leg2, sd.translate([-20*3**-.5-gap/2,0, 0])(hexagon3))
+
 total = sd.union()(
-    sd.translate([leg_y/2-leg_x*3**.5/2,0,0])(sd.rotate([0,0,30])(sleg)),
-    sd.translate([-(leg_y/2-leg_x*3**.5/2),0,0])(sd.rotate([0,0,-30])(sleg)),
-    tip,
-    cross,
+    leg1,
+    leg2,
+    # sd.translate([leg_y/2-leg_x*3**.5/2,0,0])(sd.rotate([0,0,30])(sleg)),
+    # sd.translate([-(leg_y/2-leg_x*3**.5/2),0,0])(sd.rotate([0,0,-30])(sleg)),
+    # tip,
+    # cross,
+    sd.translate([0, -5+(leg_y-leg_x*3**.5)/2*3**.5-20, cross_z/2+leg_z-1])(hexagon),
+    sd.hull()(
+    sd.translate([20*3**-.5+gap*.5,0, 0])(hexagon2),
+    sd.translate([-20*3**-.5-gap*.5, 0, 0])(hexagon2),
+        ),
+    sd.translate([0,0, 1.1])(hexagon4),
+    sd.translate([0,0, 1.1])(hexagon5),
     # sd.translate([-(cross_x-leg_x)/2,0,0])(leg),
     # sd.translate([(cross_x-leg_x)/2,0,0])(leg),
     # cross,
@@ -138,16 +132,15 @@ total = sd.union()(
     # sd.translate([-(cross_x-leg_x+2)/2,27,0])(nub),
     )
 
-total += sd.translate([0,-10,0])(total)
-# total = base_rack() 
+# total += sd.translate([0,-10,0])(total)
+# total += sd.translate([0,-20,0])(total)
 
 # notch = sd.cube([50,1,20],center=True)
 # notch = sd.translate([0,0,10])(notch)
 # notch = sd.rotate([0,0,0])(notch)
 # notch = sd.translate([0,18,2])(notch)
 
-# total += leghole
-total -= card_notch(gap=gap)
+total -= sd.translate([0,0,1])(card_notch(gap=.3))
 # total = beveled_box([10,20,30],1)
 
 
