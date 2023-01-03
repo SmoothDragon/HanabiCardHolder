@@ -46,6 +46,18 @@ def beveled_box(XYZ, bevel, center=False):
         box = sd.translate([x/2, y/2, z/2])(box)
     return box
 
+def beveled_hexagon(inradius, height, bevel, center=False):
+    '''Hexagon with beveled edges on top and bottom.
+    middle is like a hamburger patty.
+    outer is like the bun.
+    '''
+    middle = sd.cube([1/np.sqrt(3)*inradius, inradius, height-2*bevel], center=True)
+    middle = sd.hull()(*[sd.rotate([0,0,theta])(middle) for theta in range(0,360,120)])
+    outer = sd.cube([1/np.sqrt(3)*(inradius-2*bevel), inradius-2*bevel, height], center=True)
+    outer = sd.hull()(*[sd.rotate([0,0,theta])(outer) for theta in range(0,360,120)])
+    return sd.hull()(middle, outer)
+
+
 def card_notch(gap=.3, base_w=25, notch_r=6):
     notch = sd.cube([50,3,20],center=True)
     notch = sd.translate([0,0,10])(notch)
@@ -143,6 +155,7 @@ total = sd.union()(
 total -= sd.translate([0,0,1])(card_notch(gap=.3))
 # total = beveled_box([10,20,30],1)
 
+# total = beveled_hexagon(20,4,.5)
 
 fn = 256
 fa = 6
