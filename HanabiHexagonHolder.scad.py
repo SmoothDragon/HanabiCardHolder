@@ -57,6 +57,20 @@ def beveled_hexagon(inradius, height, bevel, center=False):
     outer = sd.hull()(*[sd.rotate([0,0,theta])(outer) for theta in range(0,360,120)])
     return sd.hull()(middle, outer)
 
+def beveled_half_hexagon(inradius, height, bevel, center=False):
+    '''Upper half of hexagon with beveled edges on top and bottom.
+    middle is like a hamburger patty.
+    outer is like the bun.
+    '''
+    middle = sd.cube([1/np.sqrt(3)*inradius, inradius, height-2*bevel], center=True)
+    middle = sd.hull()(*[sd.rotate([0,0,theta])(middle) for theta in range(0,360,120)])
+    y_shift = 2*inradius
+    middle = sd.intersection()(middle, sd.translate([0,y_shift/2,0])(sd.cube(y_shift,center=True)))
+    outer = sd.cube([1/np.sqrt(3)*(inradius-2*bevel), inradius-2*bevel, height], center=True)
+    outer = sd.hull()(*[sd.rotate([0,0,theta])(outer) for theta in range(0,360,120)])
+    outer = sd.intersection()(outer, sd.translate([0,y_shift/2+bevel,0])(sd.cube(y_shift, center=True)))
+    return sd.hull()(middle, outer)
+
 
 def card_notch(gap=.3, base_w=25, notch_r=6):
     notch = sd.cube([50,3,20],center=True)
@@ -64,12 +78,14 @@ def card_notch(gap=.3, base_w=25, notch_r=6):
     notch -= sd.translate([0,notch_r+gap,0])(sd.rotate([0,90,0])(sd.cylinder(r=notch_r, h=2*base_w, center=True)))
     notch -= sd.translate([0,-notch_r,0])(sd.rotate([0,90,0])(sd.cylinder(r=notch_r, h=2*base_w, center=True)))
     notch = sd.rotate([5,0,180])(notch)
-    notch = sd.translate([0,6.5,2.01])(notch)
+    notch = sd.translate([0,7.5,2.01])(notch)
     return notch
 
 lr_offset = 10
 top_d=18
-gap = .3
+v_gap = .3
+gap = .1
+infty = 1000
 bevel=.4
 
 leg_x = 5
@@ -81,81 +97,48 @@ leg = sd.translate([0,leg_y/2,leg_z/2])(leg)
 cross_x = 36
 cross_y = 10
 cross_z = 3
-cross = beveled_box(XYZ=[cross_x, cross_y-gap, cross_z], bevel=bevel, center=True)
-cross = sd.translate([0, -5+(leg_y-leg_x*3**.5)/2*3**.5-20, cross_z/2+leg_z])(cross)
 
-post = beveled_box(XYZ=[leg_x, cross_y, cross_z+leg_z], bevel=bevel, center=True)
-post = sd.translate([0,0,(cross_z+leg_z)/2])(post)
+hex_x = 5*3**-.5
+hex_y = 5
+hex_z = 2
+shift_x = 20
+unit_hex = sd.translate([0,0,hex_z/2])(beveled_hexagon(hex_y, hex_z, bevel))
 
-nub = beveled_box(XYZ=[leg_x, cross_y, cross_z+2*bevel-.2], bevel=bevel, center=True)
-nub = sd.translate([0,0,(cross_z+2*bevel)/2+leg_z-bevel-gap/2])(nub)
 
-leg1 = sd.translate([leg_y/2-leg_x*3**.5/2,0,0])(sd.rotate([0,0,30])(leg))
-leg2 = sd.translate([-(leg_y/2-leg_x*3**.5/2),0,0])(sd.rotate([0,0,-30])(leg))
-tip = sd.intersection()(leg1,leg2)
+hex_r = [sd.translate([(6.5-ii)*hex_x, (ii+.5)*hex_y,0])(unit_hex) for ii in range(5)]
+leg_r = sd.hull()(hex_r[0]+hex_r[-1]) + sd.translate([0,0,bevel])(hex_r[0])
 
-sleg_x = 5
-sleg_y = 26.5
-sleg_z = 2
-sleg = beveled_box(XYZ=[sleg_x, sleg_y, sleg_z], bevel=bevel, center=True)
-sleg = sd.translate([0,sleg_y/2,sleg_z/2])(sleg)
+hex_l = [sd.translate([-(6.5-ii)*hex_x, (ii+.5)*hex_y,0])(unit_hex) for ii in range(5)]
+leg_l = sd.hull()(hex_l[0]+hex_l[-1]) + sd.translate([0,0,bevel])(hex_l[0])
 
-leg1 = sd.translate([leg_y/2-leg_x*3**.5/2,0,0])(sd.rotate([0,0,30])(sleg)),
-leg2 = sd.translate([-(leg_y/2-leg_x*3**.5/2),0,0])(sd.rotate([0,0,-30])(sleg)),
+base = leg_l + leg_r
 
-hexagon = beveled_box(XYZ=[10*3**-.5, 10-gap, 5], bevel=bevel, center=True)
-hexagon = sd.hull()(hexagon,
-                     sd.rotate([0,0,60])(hexagon),
-                     sd.rotate([0,0,120])(hexagon),
-                     )
-hexagon2 = beveled_box(XYZ=[10*3**-.5, 10-gap, 3], bevel=bevel, center=True)
-hexagon2 = sd.hull()(hexagon2,
-                     sd.rotate([0,0,60])(hexagon2),
-                     sd.rotate([0,0,120])(hexagon2),
-                     )
-hexagon3 = sd.translate([0, -5+(leg_y-leg_x*3**.5)/2*3**.5-20, cross_z/2])(hexagon2)
-hexagon2 = sd.translate([0, -5+(leg_y-leg_x*3**.5)/2*3**.5-20, cross_z/2+leg_z+gap])(hexagon2)
-hexagon4 = sd.intersection()(leg1, sd.translate([20*3**-.5+gap*.5,0, 0])(hexagon3))
-hexagon5 = sd.intersection()(leg2, sd.translate([-20*3**-.5-gap/2,0, 0])(hexagon3))
+post_y = 15
+post_z = 6
+post = sd.translate([0,hex_y,post_z/2])(beveled_half_hexagon(post_y,post_z,bevel))
+post += sd.translate([0,2*hex_y,post_z/2])(beveled_half_hexagon(2/3*post_y,post_z,bevel))
+
+cross = sd.hull()(
+    sd.translate([-4*hex_x,0,0])(post), 
+    sd.translate([4*hex_x,0,0])(post),
+    )
+cross = sd.intersection()(cross, sd.translate([0,0,2*post_y+hex_z+v_gap])(sd.cube(4*post_y,center=True)))
+cross += post
+cross += sd.translate([0,0,hex_z/2])(sd.intersection()(sd.translate([0,0,-hex_z])(cross), base))
+cross = sd.intersection()(cross, sd.translate([0,infty/2+hex_y+gap,0])(sd.cube(infty, center=True)))
 
 total = sd.union()(
-    leg1,
-    leg2,
-    # sd.translate([leg_y/2-leg_x*3**.5/2,0,0])(sd.rotate([0,0,30])(sleg)),
-    # sd.translate([-(leg_y/2-leg_x*3**.5/2),0,0])(sd.rotate([0,0,-30])(sleg)),
-    # tip,
-    # cross,
-    sd.translate([0, -5+(leg_y-leg_x*3**.5)/2*3**.5-20, cross_z/2+leg_z-1])(hexagon),
-    sd.hull()(
-    sd.translate([20*3**-.5+gap*.5,0, 0])(hexagon2),
-    sd.translate([-20*3**-.5-gap*.5, 0, 0])(hexagon2),
-        ),
-    sd.translate([0,0, 1.1])(hexagon4),
-    sd.translate([0,0, 1.1])(hexagon5),
-    # sd.translate([-(cross_x-leg_x)/2,0,0])(leg),
-    # sd.translate([(cross_x-leg_x)/2,0,0])(leg),
-    # cross,
-    # sd.translate([(cross_x-leg_x)/2,27,0])(post),
-    # sd.translate([-(cross_x-leg_x)/2,27,0])(post),
-    # sd.translate([0,27,0])(post),
-    # sd.translate([(leg_x+2*gap)/2,27,0])(post),
-    # sd.translate([-(leg_x+2*gap)/2,27,0])(post),
-    # sd.translate([(cross_x-leg_x+2)/2,27,0])(nub),
-    # sd.translate([-(cross_x-leg_x+2)/2,27,0])(nub),
+    base,
+    cross,
     )
 
+
+# Test how shifts overlap
 # total += sd.translate([0,-10,0])(total)
 # total += sd.translate([0,-20,0])(total)
 
-# notch = sd.cube([50,1,20],center=True)
-# notch = sd.translate([0,0,10])(notch)
-# notch = sd.rotate([0,0,0])(notch)
-# notch = sd.translate([0,18,2])(notch)
-
 total -= sd.translate([0,0,1])(card_notch(gap=.3))
-# total = beveled_box([10,20,30],1)
 
-total += sd.translate([(leg_y-leg_x*3**.5)/2,0,0])(beveled_hexagon(5,2,bevel))
 
 fn = 256
 fa = 6
